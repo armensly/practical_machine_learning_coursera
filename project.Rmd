@@ -10,8 +10,8 @@ knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
 knitr::opts_chunk$set()
 ```
 ## Summary
-The purpose of this project is to train a model to predict how well a dumbbell lifting activity is performed based on the various measurements that are obtained from some sensors. From different models that we train, we have selected random forest model (with boostraping and 100 trees) to be the most effective one (although it does not give the highest accuracy value, the results are very close and it requries shorter training time). We predict an out of sample accuracy of >98\%.
-```{r}
+The purpose of this project is to train a model to predict how well a dumbbell lifting activity is performed based on the various measurements that are obtained from some sensors. From different models that we train, we have selected random forest model (with boostraping and 100 trees) to be the most effective one (although it does not give the highest accuracy value, the results are very close and it requries shorter training time). We predict an out of sample accuracy of ~99\%. We have used cross-validation and bootstrapping for different methods for fine-tuning the parameters of those models.
+```{r echo = FALSE}
 library(caret)
 setwd("~/coursera/coursera_practical_machine_learning/project/")
 #download.file(url = "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", 
@@ -20,7 +20,7 @@ setwd("~/coursera/coursera_practical_machine_learning/project/")
 #              destfile = "pml-testing.csv", method = "curl")
 ``` 
 ## Data Acquisition and Partitioning: 
-The dataset can be downloaded from [link](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv). The acquired data has more than 15,000 entries which can be considered a big dataset. Since we are asked to give an estimate of the accuracy of our model for out-of-sample data we break our dataset down to 3 partitions (i.e. training, validation and testing, a 60-20-20\% split.). 
+The dataset can be downloaded from [this link](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv). The acquired data has more than 15,000 entries which can be considered a big dataset. Since we are asked to give an estimate of the accuracy of our model for out-of-sample data we break our dataset down to 3 partitions (i.e. training, validation and testing; a 60-20-20\% split.). 
 ```{r}
 ### splitting the data:
 set.seed(123)
@@ -32,7 +32,9 @@ inTest <- createDataPartition(testing$classe, p = 0.5, list = FALSE)
 validation <- testing[-inTest,]
 testing <- testing[inTest,]
 ```
-A simple exploration of the data reveals the persence of a multitude of missing data from the dataset. Generally two approaches can be taken when there are missing data in the dataset. One could either impute the missing data using various pre-processing methods or can ignore the missing data and work only with the ones that we have. Since some of the columns have more than 90\% of their entries missing, imputing the values for those columns might not be very accurate. So we decided to try training our model based on only the columns of the data where all the entries have their values. In addition to this, the first seven columns of the data do not contain useful information (columns like the name of the person performing the exercise or the date/timeframe). We remove these columns from our dataset too. 
+A simple exploration of the data reveals the persence of a multitude of missing data from the dataset. Generally two approaches can be taken when there are missing data in the dataset. One could either impute the missing data using various pre-processing methods or can ignore the missing data and work only with the ones that are present. 
+
+Since some of the columns have more than 90\% of their entries missing, imputing the values for those columns might not be very accurate. So we decided to try training our model based only on the columns where all entries have their values. In addition, the first seven columns of the data do not contain useful information (columns like the name of the person performing the exercise or the date/timeframe). We remove these columns from our dataset too. 
 ```{r}
 ### removing unwanted columns from the data:
 training <- training[,-(1:7)]
@@ -40,10 +42,12 @@ fullCols <- (colSums(is.na(training)) == 0)
 training <- training[, fullCols]
 ```
 At the end of this steps we have a training set of `r dim(training)[1]` rows and `r dim(training)[2]` columns. The size of the validation and testing sets are respectively `r dim(validation)[1]` and `r dim(testing)[1]`. 
+
 ## Training Different Models on the Training Set: 
-We train 9 different models on the training data. The models are listed below:
+We train 9 different models on the training data. The models are listed below: 
+
 * random forest model with 25 bootstrapping samples and 100 trees 
-* random forest model with  0.632bootstrapping samples (25) and 100 trees 
+* random forest model with  0.632bootstrapping (25 samples) and 100 trees 
 * random forest model with 100 trees and using cross-validation for the selection of the randomly selected predictors; i.e. setting mtry parameter) 
 * random forest model with 100 trees and using repeated-cross-validation for the selection of the randomly selected predictors; i.e. setting mtry parameter) 
 * random forest model with 25 bootstrapping samples and 200 trees 
@@ -76,7 +80,7 @@ testingPca <- predict(prep, testing)
 modelBootPca <- train(classe~., data = trainingPca, method = "rf", ntree = 100)
 ```
 ## Validation of the Trained Models:
-After training our models on the training set, we use those models to predict the $textbf{classe}$ variable on the validation set. The results are shown below for each of those models:
+After training our models on the training set, we use those models to predict the **classe** variable on the validation set. The results are shown below for each of those models:
 ```{r echo=FALSE}
 library(caret)
 ### validation on different models:
@@ -101,20 +105,25 @@ res <- rbind(res, data.frame(method="rf_boosting_w_PCA",
                              acc=confusionMatrix(predict(modelBootPca, validationPca), validation$classe)$overall[1]))
 res
 ``` 
-We can see that most of the trained models give a very high accuract (greater than 98\%). The random forest model with 200 trees gives a slightly higher accuracy than the rest of the models. However, as we increase the number of trees we need to spend more time for training the model. Since the gain in accuracy is very slight we use the method that gives the second best accuracy, i.e. random forest with 100 trees and using 25 bootstrapping samples for tuning the mtry parameter. 
+We can see that most of the trained models give a very high accuracy (greater than 98\%). The random forest model with 200 trees gives a slightly higher accuracy than the rest of the models. However, as we increase the number of trees we need to spend more time for training the model. Since the gain in accuracy is very slight we use the method that gives the second best accuracy, i.e. random forest with 100 trees and using 25 bootstrapping samples for tuning the mtry parameter.
+
 ## Estimation of the out-of-sample Accuracy for the Selected Model: 
-Now the we have selected one model based on the validation set, we can use the testing set to give an estimate of our expected accuracy for the selected model when presented with new data: 
+Now that we have selected one model based on the validation set, we can use the testing set to give an estimate of our expected accuracy for the selected model when presented with new data: 
 ```{r}
 confusionMatrix(predict(modelBoot, testing), testing$classe)$overall[1]
 ```
-We expect to have a `confusionMatrix(predict(modelBoot, testing), testing$classe)$overall[1]` accuracy when presented with new data. 
+We expect to have a `r library(caret); confusionMatrix(predict(modelBoot, testing), testing$classe)$overall[1]` accuracy when presented with new data. 
+
 ## Importance of the Predictors: 
-One benefit of using random forests (and trees) is that these models perform the feature selection automatically. However, we can use the $textbf{varImp}$ method to see the relative importance of the features used in the construction of the model. Here we show the importance of the top 10 features used in the construction of our selected model. 
+One benefit of using random forests (and trees) is that these models perform the feature selection automatically. However, we can use the **varImp** method to see the relative importance of the features used in the construction of the model. Here we show the importance of the top 10 features used in the construction of our selected model: 
 ```{r}
-v <- varImp(modelBoot)
-v[1:10]
+v <- varImp(modelBoot)$importance
+ord <- order(varImp(modelBoot)$importance, decreasing = TRUE)
+vnames <- rownames(v)[ord]
+v <- v[ord,]
+data.frame(feature=vnames[1:10], importance=v[1:10])
 ``` 
-We can observe that $textbf{} has the highest importance in our model. After this feature the next 6 features have relatively high importance with a big distant from the eighth important feature. To check the effectiveness of these important features, we construct a model using only the 7 most important predictors:
+We can observe that `r vnames[1]` has the highest importance in our model. After this feature the next 6 features have relatively high importance with a big distance from the eighth important feature. To check the effectiveness of these important features, we construct a model using only the 7 most important predictors:
 ```{r}
 selectedFeatures <- order(v$importance$Overall, decreasing = TRUE)[1:7]
 selectTraining <- training[, selectedFeatures]
@@ -122,17 +131,27 @@ selectTraining <- cbind(selectTraining, classe=training$classe)
 modelBootSelect <- train(classe~., data = selectTraining, method = "rf", ntree = 100, trControl = trainControl(method="boot"))
 confusionMatrix(predict(modelBootSelect, validation), validation$classe)$overall[1]
 ```   
-We can see that the model trained using only the top 7 important features gives an accuracy of >95\% on the validation set, while adding the rest of 44 predictors improved the accuracy only by about 4\%. 
-Another interesting observation is that the model trained using Principal Component Analysis had  \% accuracy, comparable to the random forest model with 7 most important features, however the model trained using PCA, used 25 features (retaining \% of the variance). 
+We can see that the model trained using only the top 7 important features gives an accuracy of >98\% on the validation set, while adding the rest of the 45 predictors improved the accuracy only by about 1\%. 
 
-```{r}
+Another interesting observation is that the model trained using Principal Component Analysis had  `r res[9,2]`\% accuracy while this model used 24 predictors (to capture 95\% of the variance). 
+
+Finally it is interesting to note that for this dataset, looking at the pair-wise interaction of each of the predictors vs. the class of prediction (classe variable), does not reveal much and it appears that the most of the prediction is based on the evaluation of multiple variables **together**. As an example looking at the barplots for "yaw_belt" and "row_belt" features (first and third most important features) does not give a lot of information, except that for example if the roll_belt is larger than ~125, it should be classified as E.
+
+```{r echo = FALSE, message='hide'}
 featurePlot(x = training[,selectedFeatures], y = training$classe)
-
+library(gridExtra)
 library(ggplot2)
-ggplot(data = training, aes(roll_belt, pitch_forearm, fill = classe, color = classe)) + geom_rug()
-```
+grb <- ggplot(data = training, aes(y = roll_belt, x = classe, fill = classe)) + geom_boxplot() + theme(legend.position = "none")
+gyb <- ggplot(data = training, aes(y = yaw_belt, x = classe, fill = classe)) + geom_boxplot() + theme(legend.position = "none")
+grid.arrange(grb, gyb, ncol = 2, nrow = 1)
+```  
+
+However, looking at the interaction of the these two variables reveals that if  -80 < yaw_belt < -75, then if the roll_belt is greater than 10 or less than 2 it should be classified as D. 
 
 ```{r}
+ggplot(data = training[training$yaw_belt < -75 & training$yaw_belt > -80, ], aes(y = roll_belt, x = classe, fill = classe)) + geom_boxplot()
+```
+```{r, echo = FALSE}
 ### final testing for the quiz:
 final_testing <- read.csv("pml-testing.csv", na.strings=c("NA", "#DIV/0!", " "))
 ```
